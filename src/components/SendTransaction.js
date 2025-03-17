@@ -1,112 +1,65 @@
 import React, { useState } from "react";
-import { Button, TextField, Card, CardContent, Typography } from "@mui/material";
-import Web3 from "web3";
+import { BrowserProvider, parseEther } from "ethers";
 
-export default function SendTransaction() {
-  const [account, setAccount] = useState(null);
+const SendTransaction = () => {
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("");
-  const [transactionHash, setTransactionHash] = useState(null);
+  const [status, setStatus] = useState("");
 
-  // Connect to MetaMask
-  const connectWallet = async () => {
-    if (window.ethereum) {
-      try {
-        const web3 = new Web3(window.ethereum);
-        await window.ethereum.request({ method: "eth_requestAccounts" });
-        const accounts = await web3.eth.getAccounts();
-        setAccount(accounts[0]);
-      } catch (error) {
-        console.error("Error connecting to MetaMask:", error);
-      }
-    } else {
-      alert("MetaMask is not installed! Please install it.");
-    }
-  };
-
-  // Send transaction
   const sendTransaction = async () => {
-    if (!window.ethereum || !account) {
-      alert("Please connect MetaMask first!");
-      return;
-    }
-
-    if (!recipient || !amount) {
-      alert("Please enter recipient address and amount!");
+    if (!window.ethereum) {
+      setStatus("MetaMask is not installed!");
       return;
     }
 
     try {
-      const web3 = new Web3(window.ethereum);
-      const amountInWei = web3.utils.toWei(amount, "ether");
+      // Connect to MetaMask
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
 
-      const transactionParameters = {
-        from: account,
+      // Transaction details
+      const transaction = {
         to: recipient,
-        value: amountInWei,
+        value: parseEther(amount), // Convert ETH to Wei
+        gasLimit: 21000, // Standard gas limit for ETH transfer
       };
 
-      const txHash = await window.ethereum.request({
-        method: "eth_sendTransaction",
-        params: [transactionParameters],
-      });
+      // Send transaction
+      const tx = await signer.sendTransaction(transaction);
+      await tx.wait(); // Wait for confirmation
 
-      setTransactionHash(txHash);
+      setStatus(`✅ Transaction Successful!`);
     } catch (error) {
-      console.error("Transaction failed:", error);
+      console.error("Transaction Error:", error);
+      setStatus(`❌ Transaction Failed: ${error.message}`);
     }
   };
 
   return (
-    <Card sx={{ marginTop: "20px", padding: "20px", textAlign: "center" }}>
-      <CardContent>
-        <Typography variant="h6">🔗 Peer-to-Peer Transaction</Typography>
-
-        {account ? (
-          <>
-            <Typography variant="body1" sx={{ marginBottom: "10px" }}>
-              Connected Account: <strong>{account}</strong>
-            </Typography>
-
-            <TextField
-              label="Recipient Address"
-              variant="outlined"
-              fullWidth
-              sx={{ marginBottom: "10px" }}
-              value={recipient}
-              onChange={(e) => setRecipient(e.target.value)}
-            />
-
-            <TextField
-              label="Amount (ETH)"
-              variant="outlined"
-              fullWidth
-              sx={{ marginBottom: "10px" }}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-
-            <Button
-              variant="contained"
-              color="primary"
-              fullWidth
-              onClick={sendTransaction}
-            >
-              Send Transaction
-            </Button>
-
-            {transactionHash && (
-              <Typography variant="body2" color="success" sx={{ marginTop: "10px" }}>
-                ✅ Transaction Sent! Hash: {transactionHash}
-              </Typography>
-            )}
-          </>
-        ) : (
-          <Button variant="contained" color="secondary" onClick={connectWallet}>
-            Connect MetaMask
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+    <div style={{ textAlign: "center", padding: "20px" }}>
+      <h2>🔗 Send Ethereum</h2>
+      <input
+        type="text"
+        placeholder="Recipient Address"
+        value={recipient}
+        onChange={(e) => setRecipient(e.target.value)}
+        style={{ marginBottom: "10px", padding: "8px", width: "300px" }}
+      />
+      <br />
+      <input
+        type="text"
+        placeholder="Amount (ETH)"
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        style={{ marginBottom: "10px", padding: "8px", width: "300px" }}
+      />
+      <br />
+      <button onClick={sendTransaction} style={{ padding: "10px 20px", fontSize: "16px" }}>
+        🚀 Send Transaction
+      </button>
+      <p style={{ marginTop: "10px", color: "blue" }}>{status}</p>
+    </div>
   );
-}
+};
+
+export default SendTransaction;
